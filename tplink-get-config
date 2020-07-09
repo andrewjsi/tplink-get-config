@@ -19,6 +19,7 @@ example: tplink-get-config sg3424 /var/backup/switch.cfg 192.168.0.1 admin verys
 
 Device types:
  sg3424    - TP-Link TL-SG3424P Gigabit POE switch, or similar
+ t1600g    - TP-Link T1600G-28TS switch, T2600G, or similar
 
 USAGE
 }
@@ -62,8 +63,50 @@ do_sg3424 () {
     quit
 }
 
+# TP-Link T1600G, T2600G or similar
+do_t1600g () {
+    # Login
+    curl -sS -X POST \
+        -H 'Content-type: application/json' \
+        -d "{\"username\": \"$user\", \"password\": \"$password\", \"operation\": \"write\"}" \
+        http://$host/data/login.json \
+        >response_login
+
+    if head -n 1 response_login |grep -q '"success":false'; then
+        quit "Username or password is incorrect"
+    fi
+
+    if ! head -n 1 response_login |grep -q '"success":true'; then
+        cat response_login
+        quit "Unknown content received from switch"
+    fi
+
+    # token example: "_tid_=e1b162357533a10c&usrLvl=3"
+    local tid=$(cat response_login | awk -F'"_tid_":"' {'print $2'} | awk -F'"' {'print $1'})
+    local usrLvl=$(cat response_login | awk -F'"usrLvl":' {'print $2'} | awk -F'}' {'print $1'})
+    local token="_tid_=$tid&usrLvl=$usrLvl"
+
+    # "http://127.0.0.1/data/sysConfigBackup.cfg?operation=write&unit_id=1&_tid_=2e9bc1231abcdb6e&usrLvl=3
+    url="http://$host/data/sysConfigBackup.cfg?operation=write&unit_id=1&$token"
+
+    # Fetch
+    curl -sS "$url" >response_config
+    if ! head -n 1 response_config |grep -qe '^\!'; then
+        quit "Login success, but can't fetch the config"
+    fi
+
+    # Logout
+    curl -sS -X POST "http://$host/data/logout.json?$token" >response_logout
+
+    # Write output
+    cd "$oldpwd"
+    cat $tmpdir/response_config >$output
+    quit
+}
+
 case $device in
     sg3424)             do_sg3424                       ;;
+    t1600g)             do_t1600g                       ;;
     *)                  usage; quit 'Unknown device!'   ;;
 esac
 

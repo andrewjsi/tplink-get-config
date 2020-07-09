@@ -4,12 +4,15 @@
 connect to a TP-Link device and download their configuration. The script uses
 curl to communicate with the device web server.
 
-This script is primarily used to always have fresh backup of device
+This script is primarily used to always have a fresh backup of device
 configuration. Typically invoked by cron.
 
 ## Known devices
 
+This list is incomplete. Probably many more types are known. Please let a feedback!
+
 * TP-Link TL-SG3424P Gigabit POE switch, or similar
+* TP-Link T1600G, T2600G or similar gigabit switches
 
 ## Requirements
 
